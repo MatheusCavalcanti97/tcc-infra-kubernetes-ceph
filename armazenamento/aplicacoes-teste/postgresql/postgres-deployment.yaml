@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: banco
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+
+    spec:
+      terminationGracePeriodSeconds: 60
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: postgres
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: postgres
+          image: postgres:16
+
+          env:
+            - name: POSTGRES_DB
+              value: testes
+            - name: POSTGRES_USER
+              value: admin
+            - name: POSTGRES_PASSWORD
+              value: admin123
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          ports:
+            - containerPort: 5432
+
+          volumeMounts:
+            - name: dados
+              mountPath: /var/lib/postgresql/data
+
+      volumes:
+        - name: dados
+          persistentVolumeClaim:
+            claimName: postgres-pvc

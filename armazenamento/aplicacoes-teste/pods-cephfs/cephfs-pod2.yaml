@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cephfs-pod-2
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu:22.04
+    command:
+      - sleep
+      - infinity
+    volumeMounts:
+      - name: dados
+        mountPath: /dados
+  volumes:
+    - name: dados
+      persistentVolumeClaim:
+        claimName: cephfs-rwx-pvc

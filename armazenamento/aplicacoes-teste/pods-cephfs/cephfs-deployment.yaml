@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cephfs-deployment
+spec:
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: cephfs
+
+  template:
+    metadata:
+      labels:
+        app: cephfs
+
+    spec:
+      containers:
+      - name: ubuntu
+        image: ubuntu:22.04
+        command:
+        - sleep
+        - infinity
+
+        volumeMounts:
+        - name: dados
+          mountPath: /dados
+
+      volumes:
+      - name: dados
+        persistentVolumeClaim:
+          claimName: cephfs-rwx-pvc

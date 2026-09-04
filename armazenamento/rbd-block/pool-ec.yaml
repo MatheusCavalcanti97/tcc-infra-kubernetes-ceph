@@ -1,0 +1,13 @@
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ec-data-pool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  deviceClass: hdd
+  erasureCoded:
+    dataChunks: 2
+    codingChunks: 1
+  parameters:
+    compression_mode: none

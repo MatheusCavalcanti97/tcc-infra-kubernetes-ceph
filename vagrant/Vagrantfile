@@ -1,0 +1,115 @@
+Vagrant.configure("2") do |config|
+  MASTER_IP1 = "192.168.100.10"
+  MASTER_IP2 = "192.168.100.11"
+  MASTER_IP3 = "192.168.100.12"
+
+  WORKER_IP1 = "192.168.100.211"
+  WORKER_IP2 = "192.168.100.212"
+  WORKER_IP3 = "192.168.100.213"
+
+  def basic_setup(node_name)
+    <<-SHELL
+    echo ">>> [#{node_name}] Configurando usuário e instalando Kubernetes e Containerd..."
+    echo "vagrant:vagrant" | sudo chpasswd
+    sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sudo systemctl restart ssh
+
+    sudo apt update
+    sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release software-properties-common
+
+    sudo apt install -y containerd
+    sudo mkdir -p /etc/containerd
+    sudo containerd config default | sudo tee /etc/containerd/config.toml
+    sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+    sudo systemctl restart containerd
+    sudo systemctl enable containerd
+
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+    sudo apt update
+    sudo apt install -y kubelet kubeadm kubectl
+    sudo apt-mark hold kubelet kubeadm kubectl
+
+    sudo sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
+    echo 'br_netfilter' | sudo tee /etc/modules-load.d/k8s.conf
+
+    sudo init 6
+
+    echo ">>> [#{node_name}] Instalação concluída!"
+    SHELL
+  end
+
+  [
+    {name: "k8s-master01-tcc", ip: MASTER_IP1},
+    {name: "k8s-master02-tcc", ip: MASTER_IP2},
+    {name: "k8s-master03-tcc", ip: MASTER_IP3}
+  ].each do |master_cfg|
+    config.vm.define master_cfg[:name] do |master|
+      master.vm.box = "debian/bookworm64"
+      master.vm.hostname = master_cfg[:name]
+
+      master.vm.network "private_network",
+        ip: master_cfg[:ip],
+        libvirt__network_name: "vagrant-net",
+        libvirt__forward_mode: "nat"
+
+      master.vm.network "forwarded_port", guest: 30080, host: 30080
+      master.vm.network "forwarded_port", guest: 32193, host: 32193
+
+      master.vm.synced_folder ".", "/vagrant", type: "rsync"
+
+      master.vm.provider "libvirt" do |libvirt|
+        libvirt.memory = 5120
+        libvirt.cpus = 4
+
+        libvirt.storage :file,
+          size: '10G',
+          bus: 'virtio',
+          type: 'raw'
+
+        libvirt.storage :file,
+          size: '10G',
+          bus: 'virtio',
+          type: 'raw'
+      end
+
+      master.vm.provision "shell", inline: basic_setup("MASTER")
+    end
+  end
+
+  [
+    {name: "k8s-worker01-tcc", ip: WORKER_IP1},
+    {name: "k8s-worker02-tcc", ip: WORKER_IP2},
+    {name: "k8s-worker03-tcc", ip: WORKER_IP3}
+  ].each_with_index do |worker_cfg, i|
+    config.vm.define worker_cfg[:name] do |worker|
+      worker.vm.box = "debian/bookworm64"
+      worker.vm.hostname = worker_cfg[:name]
+
+      worker.vm.network "private_network",
+        ip: worker_cfg[:ip],
+        libvirt__network_name: "vagrant-net",
+        libvirt__forward_mode: "nat"
+
+      worker.vm.synced_folder ".", "/vagrant", type: "rsync"
+
+      worker.vm.provider "libvirt" do |libvirt|
+        libvirt.memory = 4096
+        libvirt.cpus = 2
+
+        libvirt.storage :file,
+          size: '10G',
+          bus: 'virtio',
+          type: 'raw'
+
+        libvirt.storage :file,
+          size: '10G',
+          bus: 'virtio',
+          type: 'raw'
+      end
+      worker.vm.provision "shell", inline: basic_setup("WORKER #{i + 1}")
+    end
+  end
+end

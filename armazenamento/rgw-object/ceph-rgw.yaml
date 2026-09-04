@@ -1,0 +1,38 @@
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 3
+
+  gateway:
+    port: 80
+    instances: 3
+
+    placement:
+      any:
+        tolerations:
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+            effect: NoSchedule
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+
+    resources:
+      limits:
+        memory: "1Gi"
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+
+  preservePoolsOnDelete: false

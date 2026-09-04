@@ -1,0 +1,32 @@
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: myfs
+  namespace: rook-ceph
+
+spec:
+  metadataPool:
+    replicated:
+      size: 3
+
+  dataPools:
+    - replicated:
+        size: 3
+
+  preserveFilesystemOnDelete: true
+
+  metadataServer:
+    activeCount: 3
+
+    placement:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - rook-ceph-mds

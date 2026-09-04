@@ -1,0 +1,96 @@
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: my-ceph-cluster
+  namespace: rook-ceph
+
+spec:
+  cephVersion:
+    image: quay.io/ceph/ceph:v18.2.2
+    allowUnsupported: true
+
+  dataDirHostPath: /var/lib/rook
+
+  placement:
+    all:
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+
+    mon:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: Exists
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+
+    mgr:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-role.kubernetes.io/control-plane
+                  operator: Exists
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+
+  mon:
+    count: 3
+    allowMultiplePerNode: true
+
+  mgr:
+    count: 2
+    allowMultiplePerNode: false
+
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+
+    nodes:
+      - name: "k8s-master01-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+      - name: "k8s-master02-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+      - name: "k8s-master03-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+      - name: "k8s-worker01-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+      - name: "k8s-worker02-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+      - name: "k8s-worker03-tcc"
+        devices:
+          - name: "vdb"
+          - name: "vdc"
+
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: "45s"
+        timeout: "3 mins"
